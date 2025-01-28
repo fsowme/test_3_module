@@ -1,93 +1,66 @@
 import asyncio
+import dataclasses
 import logging
 
 from confluent_kafka import Consumer
 
-from .storages import BaseStorage
-
 logger = logging.getLogger(__name__)
 
 
-class ManagerException(Exception):
-    pass
+@dataclasses.dataclass
+class ConsumerConfig:
+    bootstrap__servers: str
+    group__id: str
+    auto__offset__reset: str
+    enable__auto__commit: bool
 
-
-class TopicsNotConfigured(ManagerException):
-    pass
-
-
-class PollException(ManagerException):
-    pass
-
-
-class KafkaConsumerManager:
-    _auto_commit = False
-    _auto_reset = 'latest'
-    _timeout = 1
-    _topics_list_file = '_topics.json'
-
-    def __init__(self, broker: str, group: str, storage: BaseStorage, skip_errors=True):
-        self.broker = broker
-        self.group_id = group
-        self.storage = storage
-        self.skip_errors = skip_errors
-
-        self.topics = []
-        self._task = None
-        self._stop_event = asyncio.Event()
-
-    async def start(self, topics: list[str]):
-        if topics is not None:
-            self.topics.extend(topics)
-
-        if not self.topics:
-            raise TopicsNotConfigured()
-
-        if self._task is not None:
-            await self.stop()
-
-        self._task = asyncio.create_task(self._runner())
-        logger.info('Consumer started')
-
-    async def stop(self):
-        if self._task:
-            self._stop_event.set()
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-            self._task = None
-
-        if self._stop_event.is_set():
-            self._stop_event.clear()
-
-        logger.info('Consumer stopped')
-
-    async def _runner(self):
-        config = {
-            'bootstrap.servers': self.broker,
-            'group.id': self.group_id,
-            'auto.offset.reset': self._auto_reset,
-            'enable.auto.commit': self._auto_commit,
+    def to_dict(self) -> dict:
+        return {
+            field.name.replace('__', '.'): getattr(self, field.name)
+            for field in dataclasses.fields(self)
         }
-        consumer = Consumer(config)
-        consumer.subscribe(self.topics)
 
-        try:
-            while not self._stop_event.is_set():
-                msg = consumer.poll(self._timeout)
-                if msg is None:
-                    continue
-                error = msg.error()
-                if error:
-                    if not self.skip_errors:
-                        raise PollException()
-                    logger.error("Error polling topics: %s", error)
-                await self.process_message(msg.topic(), msg.value())
-                consumer.commit(asynchronous=False)
-        finally:
-            consumer.close()
 
-    async def process_message(self, topic: str, message: bytes):
-        self.storage.save(topic, message)
+@dataclasses.dataclass
+class Message:
+    topic: str
+    key: str
+    value: str
+
+
+class ConsumerException(Exception):
+    pass
+
+
+class KafkaConsumer:
+    _timeout = 0.1
+
+    def __init__(self, config: ConsumerConfig):
+        self.config = config
+        self.consumer = Consumer(self.config.to_dict())
+
+    async def run(self, topics: list[str]):
+        self.consumer.subscribe(topics)
+
+        while True:
+            msg = await self.consumer.poll(self._timeout)
+
+            if msg is None:
+                continue
+
+            error = msg.error()
+            if error:
+                logger.error("Error polling topics: %s", error)
+                continue
+
+            yield Message(topic=msg.topic(), key=msg.key(), value=msg.value())
+            await asyncio.sleep(0)
+
+    async def commit(self):
+        await self.consumer.commit(asynchronous=False)
+
+    def __enter__(self) -> 'KafkaConsumer':
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.consumer.close()
