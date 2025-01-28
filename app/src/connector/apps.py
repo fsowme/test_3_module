@@ -7,13 +7,13 @@ from .managers import KafkaConsumerManager, start_manager_from_file
 from .models import Connector
 from .storages import FileStorage
 
-KAFKA_BROKER = 'kafka-0:9092'
+KAFKA_BROKER = '127.0.0.1:9094'
 CONSUMER_GROUP = 'connector_parody'
 
 CONSUMER_CONFIG = ConsumerConfig(
     bootstrap__servers=KAFKA_BROKER,
     group__id=CONSUMER_GROUP,
-    auto__offset__reset='latest',
+    auto__offset__reset='earliest',
     enable__auto__commit=False,
 )
 
@@ -22,7 +22,7 @@ consumer_manager = KafkaConsumerManager(FileStorage(), CONSUMER_CONFIG)
 
 @asynccontextmanager
 async def kafka_consumer_manager(app: FastAPI):
-    start_manager_from_file(manager=consumer_manager)
+    await start_manager_from_file(manager=consumer_manager)
 
     yield
 
@@ -32,19 +32,19 @@ async def kafka_consumer_manager(app: FastAPI):
 application = FastAPI(lifespan=kafka_consumer_manager)
 
 
-@application.post('connectors')
+@application.post('/connectors')
 async def create(new_connector: Connector):
     await consumer_manager.add_topic(new_connector.name, new_connector.config.topics)
     return new_connector
 
 
-@application.put('connectors/{connector_name}/config')
+@application.put('/connectors/{connector_name}/config')
 async def update(connector_name: str = Path(...), connector: Connector = ...):
     await consumer_manager.add_topic(connector_name, connector.config.topics)
     return connector
 
 
-@application.get('connectors/{connector_name}/status')
+@application.get('/connectors/{connector_name}/status')
 async def status(connector_name: str):
     state = "RUNNING" if consumer_manager.is_alive(connector_name) else "STOPPED"
     result = {

@@ -14,6 +14,13 @@ class BaseStorage(metaclass=ABCMeta):
 
 class FileStorage(BaseStorage):
     def save(self, name, data):
+        try:
+            self._save(name, data)
+        except FileNotFoundError:
+            os.makedirs(os.path.dirname(name), exist_ok=True)
+            self._save(name, data)
+
+    def _save(self, name, data):
         with open(name, 'w') as f:
             f.write(data)
 

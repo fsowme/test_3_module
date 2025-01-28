@@ -2,14 +2,13 @@ import asyncio
 import logging
 import os.path
 
-from .consumers import ConsumerConfig, KafkaConsumer
+from .consumers import ConsumerConfig, KafkaConsumer, Message
 from .settings import Settings
 from .storages import BaseStorage
 
 logger = logging.getLogger(__name__)
 
 _BASE_FILE_PATH = 'persist'
-_SETTINGS_FILE_NAME = 'settings.json'
 
 
 class ManagerException(Exception):
@@ -40,7 +39,7 @@ class KafkaConsumerManager:
             await self.stop()
 
         self.topics = topics
-        self._task = asyncio.create_task(self.consumer.run(self.topics))
+        self._create_task()
         logger.info('Consumer started')
 
     async def add_topic(self, name: str, topic: str):
@@ -48,8 +47,14 @@ class KafkaConsumerManager:
 
         _, topic = self.settings_manager.add_topic(name, topic)
         self.topics.append(topic)
-        self._task = asyncio.create_task(self.consumer.run(self.topics))
+        self._create_task()
         logger.info('Topics added')
+
+    def _create_task(self):
+        def message_handler(message: Message):
+            self.storage.save(_get_file_path(message.topic), message.value)
+
+        self._task = asyncio.create_task(self.consumer.run(self.topics, message_handler=message_handler))
 
     async def stop(self):
         if self._task:
@@ -61,19 +66,16 @@ class KafkaConsumerManager:
             self._task = None
             logger.info('Consumer stopped')
 
-    async def process_message(self, topic: str, message: bytes):
-        self.storage.save(_get_file_path(topic), message)
-
     def is_alive(self, connector):
         settings = self.settings_manager.get_settings()
         topic = settings[connector]
         return self._task is not None and not self._task.done() and topic in self.topics
 
 
-def start_manager_from_file(manager: KafkaConsumerManager) -> None:
+async def start_manager_from_file(manager: KafkaConsumerManager) -> None:
     topics = Settings().get_topics()
     if topics:
-        manager.start(topics)
+        await manager.start(topics)
     else:
         logger.info('Topics not found, consumer not started')
 

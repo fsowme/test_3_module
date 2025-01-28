@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import logging
+from typing import Callable
 
 from confluent_kafka import Consumer
 
@@ -33,17 +34,19 @@ class ConsumerException(Exception):
 
 
 class KafkaConsumer:
-    _timeout = 0.1
+    _timeout = 2
 
     def __init__(self, config: ConsumerConfig):
         self.config = config
         self.consumer = Consumer(self.config.to_dict())
 
-    async def run(self, topics: list[str]):
+    async def run(self, topics: list[str], message_handler: Callable[[Message], None]):
         self.consumer.subscribe(topics)
 
+        await asyncio.sleep(0)
+
         while True:
-            msg = await self.consumer.poll(self._timeout)
+            msg = self.consumer.poll(self._timeout)
 
             if msg is None:
                 continue
@@ -53,14 +56,12 @@ class KafkaConsumer:
                 logger.error("Error polling topics: %s", error)
                 continue
 
-            yield Message(topic=msg.topic(), key=msg.key(), value=msg.value())
+            value = msg.value()
+            if isinstance(value, bytes):
+                value = value.decode()
+            message = Message(topic=msg.topic(), key=msg.key(), value=value)
+
+            message_handler(message)
+
+            self.consumer.commit(asynchronous=False)
             await asyncio.sleep(0)
-
-    async def commit(self):
-        await self.consumer.commit(asynchronous=False)
-
-    def __enter__(self) -> 'KafkaConsumer':
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.consumer.close()

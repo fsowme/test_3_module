@@ -2,7 +2,7 @@ import json
 
 from .storages import FileStorage
 
-setting = dict[str, str]
+SettingsType = dict[str, str]
 
 
 class Settings:
@@ -11,16 +11,17 @@ class Settings:
     def __init__(self):
         self.storage = FileStorage()
 
-    def get_settings(self) -> setting:
+    def get_settings(self) -> SettingsType:
         try:
             settings_raw = self.storage.read(self._settings_file)
         except FileNotFoundError:
-            settings = []
+            settings = {}
+            self.save_settings(settings)
         else:
             settings = json.loads(settings_raw)
         return settings
 
-    def save_settings(self, settings: setting) -> None:
+    def save_settings(self, settings: SettingsType) -> None:
         self.storage.save(self._settings_file, json.dumps(settings))
 
     def get_topics(self) -> list[str]:
@@ -37,14 +38,3 @@ class Settings:
 
     def _validate_value(self, value: str) -> str:
         return value.lower()
-
-
-
-# [
-#   {name: name, topics:}
-# ]
-
-# {
-#   name: some,
-#   topic: somet
-# }
