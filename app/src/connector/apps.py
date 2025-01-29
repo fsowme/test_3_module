@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Path
 
 from .consumers import ConsumerConfig
-from .managers import KafkaConsumerManager, start_manager_from_file
+from .managers import KafkaConsumerManager, start_manager_from_file, get_metrics
 from .models import Connector
 from .storages import FileStorage
 
@@ -63,3 +63,7 @@ async def status(connector_name: str):
         "type": "sink"
     }
     return result
+
+@application.get('/metrics/{connector_name}')
+def get_metrics(connector_name: str):
+    metrics = get_metrics(connector_name)

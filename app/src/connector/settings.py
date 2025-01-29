@@ -38,3 +38,7 @@ class Settings:
 
     def _validate_value(self, value: str) -> str:
         return value.lower()
+
+    def topic_by_name(self, name: str) -> str:
+        settings = self.get_settings()
+        return settings[name]

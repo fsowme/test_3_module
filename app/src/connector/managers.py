@@ -1,10 +1,11 @@
 import asyncio
+import json
 import logging
 import os.path
 
 from .consumers import ConsumerConfig, KafkaConsumer, Message
 from .settings import Settings
-from .storages import BaseStorage
+from .storages import BaseStorage, FileStorage
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,15 @@ async def start_manager_from_file(manager: KafkaConsumerManager) -> None:
         await manager.start(topics)
     else:
         logger.info('Topics not found, consumer not started')
+
+
+MetricsType = dict[str, dict[str, str|int]]
+
+
+def get_metrics(connector_name: str) -> MetricsType:
+    topic = Settings().topic_by_name(connector_name)
+    metrics_raw = FileStorage().read(_get_file_path(topic))
+    return json.loads(metrics_raw)
 
 
 def _get_file_path(name: str) -> str:
