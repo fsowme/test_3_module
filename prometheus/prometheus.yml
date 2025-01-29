@@ -18,7 +18,29 @@ rule_files:
 
 # A scrape configuration containing exactly one endpoint to scrape:
 scrape_configs:
-  - job_name: 'pymetrics'
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: 'prometheus'
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+    static_configs:
+      - targets: ['localhost:9090']
+
+    # Scrape Kafka Connect /metrics
+  - job_name: 'kafka-connect-host'
+    static_configs:
+      - targets: ['kafka-connect:9876']
+
+  - job_name: 'pymetrics-1'
     static_configs:
       - targets: ['connector:8000']
     metrics_path: '/metrics/prometheus-connector-1'
+
+  - job_name: 'pymetrics-2'
+    static_configs:
+      - targets: [ 'connector:8000' ]
+    metrics_path: '/metrics/prometheus-connector-2'
+
+  - job_name: 'pymetrics-3'
+    static_configs:
+      - targets: [ 'connector:8000' ]
+    metrics_path: '/metrics/prometheus-connector-3'
