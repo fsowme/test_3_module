@@ -1,13 +1,16 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Path
+from fastapi import FastAPI, HTTPException, Path
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from starlette.requests import Request
 
 from .consumers import ConsumerConfig
-from .managers import KafkaConsumerManager, start_manager_from_file, get_metrics
+from .managers import KafkaConsumerManager, Status, get_metrics_obj, start_manager_from_file
 from .models import Connector
 from .storages import FileStorage
 
-KAFKA_BROKER = '127.0.0.1:9094'
+KAFKA_BROKER = 'kafka-0:9092'
 CONSUMER_GROUP = 'connector_parody'
 
 CONSUMER_CONFIG = ConsumerConfig(
@@ -30,6 +33,7 @@ async def kafka_consumer_manager(app: FastAPI):
 
 
 application = FastAPI(lifespan=kafka_consumer_manager)
+templates = Jinja2Templates(directory="connector/templates")
 
 
 @application.post('/connectors')
@@ -46,7 +50,10 @@ async def update(connector_name: str = Path(...), connector: Connector = ...):
 
 @application.get('/connectors/{connector_name}/status')
 async def status(connector_name: str):
-    state = "RUNNING" if consumer_manager.is_alive(connector_name) else "STOPPED"
+    state = consumer_manager.status(connector_name)
+    if state == Status.NOT_FOUND:
+        raise HTTPException(status_code=404)
+
     result = {
         "name": connector_name,
         "connector": {
@@ -64,6 +71,8 @@ async def status(connector_name: str):
     }
     return result
 
-@application.get('/metrics/{connector_name}')
-def get_metrics(connector_name: str):
-    metrics = get_metrics(connector_name)
+
+@application.get('/metrics/{connector_name}', response_class=HTMLResponse)
+def get_metrics(request: Request, connector_name: str):
+    metrics = get_metrics_obj(connector_name)
+    return templates.TemplateResponse('prometheus.html', {'request': request, 'metrics': metrics})

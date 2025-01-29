@@ -11,47 +11,47 @@ logger = logging.getLogger(__name__)
 
 
 CONFIG = {
-    'bootstrap.servers': 'localhost:9092',
+    'bootstrap.servers': '127.0.0.1:9094',
     'acks': 'all',
     'retries': 3,
 }
 
 
-def produce(message: bytes, topic_name: str):
+def produce(message_raw: bytes, topic_name: str):
     producer = kafka.Producer(CONFIG)
     try:
-        producer.produce(topic_name, value=message)
+        producer.produce(topic_name, value=message_raw)
     except kafka.KafkaException as error:
-        logger.error('Something went wrong, message:%s, error: %s', message, error)
+        logger.error('Something went wrong, message:%s, error: %s', message_raw, error)
         raise
     producer.flush()
 
 
-def _create_messages(alloc: int, free: int, poll: int, total: int) -> str:
+def _create_messages(alloc_val: int, free_val: int, poll_val: int, total_val: int) -> str:
     message_pattern = {
         'Alloc': {
             'Type': 'gauge',
             'Name': 'Alloc',
             'Description': 'Alloc is bytes of allocated head objects.',
-            'Value': alloc
+            'Value': alloc_val
         },
         'FreeMemory': {
             'Type': 'gauge',
             'Name': 'FreeMemory',
             'Description': 'RAM available for programs to allocate.',
-            'Value': free
+            'Value': free_val
         },
         'PollCount': {
             'Type': 'counter',
             'Name': 'PollCount',
             'Description': 'PollCount is quantity of metrics collection iteration.',
-            'Value': poll
+            'Value': poll_val
         },
         'TotalMemory': {
             'Type': 'gauge',
             'Name': 'TotalMemory',
             'Description': 'Total amount of RAM on this system.',
-            'Value': total
+            'Value': total_val
         },
     }
     return json.dumps(message_pattern)

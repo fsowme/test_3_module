@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connector</title>
+</head>
+<body>
+<pre>{% for metric_name, metric in metrics.items() %}# HELP {{ metric_name }} {{ metric['Description'] }} <br /># TYPE {{ metric_name }} {{ metric['Type'] }} <br />{{ metric_name }} {{ metric['Value'] }} <br />{% endfor %}</pre>
+</body>
+</html>

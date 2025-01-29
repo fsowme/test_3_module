@@ -29,39 +29,40 @@ class Message:
     value: str
 
 
-class ConsumerException(Exception):
-    pass
-
-
 class KafkaConsumer:
-    _timeout = 2
+    _timeout = 0.1
 
-    def __init__(self, config: ConsumerConfig):
+    def __init__(self, config: ConsumerConfig, topics: list[str]):
         self.config = config
         self.consumer = Consumer(self.config.to_dict())
+        self.topics = topics
 
-    async def run(self, topics: list[str], message_handler: Callable[[Message], None]):
-        self.consumer.subscribe(topics)
+    async def run(self, message_handler: Callable[[Message], None]):
+        self.consumer.subscribe(self.topics)
+        try:
+            while True:
+                await asyncio.sleep(0)
 
-        await asyncio.sleep(0)
+                if self.topics != self.consumer.list_topics():
+                    self.consumer.subscribe(self.topics)
 
-        while True:
-            msg = self.consumer.poll(self._timeout)
+                msg = self.consumer.poll(self._timeout)
 
-            if msg is None:
-                continue
+                if msg is None:
+                    continue
 
-            error = msg.error()
-            if error:
-                logger.error("Error polling topics: %s", error)
-                continue
+                error = msg.error()
+                if error:
+                    logger.error("Error polling topics: %s", error)
+                    continue
 
-            value = msg.value()
-            if isinstance(value, bytes):
-                value = value.decode()
-            message = Message(topic=msg.topic(), key=msg.key(), value=value)
+                value = msg.value()
+                if isinstance(value, bytes):
+                    value = value.decode()
+                message = Message(topic=msg.topic(), key=msg.key(), value=value)
 
-            message_handler(message)
+                message_handler(message)
 
-            self.consumer.commit(asynchronous=False)
-            await asyncio.sleep(0)
+                self.consumer.commit(asynchronous=False)
+        finally:
+            self.consumer.close()

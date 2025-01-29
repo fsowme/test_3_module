@@ -2,3 +2,4 @@ confluent-kafka
 fastapi[standard]
 uvicorn[standard]
 pydantic
+jinja2

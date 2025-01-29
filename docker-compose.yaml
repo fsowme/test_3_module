@@ -27,6 +27,11 @@ services:
       KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka-0:9092,EXTERNAL://127.0.0.1:9094
     volumes:
       - kafka_0_data:/bitnami/kafka
+    healthcheck:
+      test: kafka-topics.sh --list --bootstrap-server localhost:9092 || exit 1
+      interval: 1s
+      timeout: 60s
+      retries: 60
 
   kafka-1:
     <<: *kafka-common
@@ -40,6 +45,11 @@ services:
       KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://127.0.0.1:9095
     volumes:
       - kafka_1_data:/bitnami/kafka
+    healthcheck:
+      test: kafka-topics.sh --list --bootstrap-server localhost:9092 || exit 1
+      interval: 1s
+      timeout: 60s
+      retries: 60
 
   kafka-2:
     <<: *kafka-common
@@ -53,6 +63,11 @@ services:
       KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://127.0.0.1:9096
     volumes:
       - kafka_2_data:/bitnami/kafka
+    healthcheck:
+      test: kafka-topics.sh --list --bootstrap-server localhost:9092 || exit 1
+      interval: 1s
+      timeout: 60s
+      retries: 60
 
   ui:
     image: provectuslabs/kafka-ui:v0.7.0
@@ -82,11 +97,16 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - kafka-0
-      - kafka-1
-      - kafka-2
+      kafka-0:
+        condition: service_healthy
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
     volumes:
       - ./data:/app/persist
+    networks:
+      - proxynet
 
 networks:
   proxynet:
