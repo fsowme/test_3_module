@@ -47,75 +47,26 @@ localhost:8000/connectors/prometheus-connector-3/status
 ## Part 3
 1. Лог создания коннектора
 ```
-(kafka_test_3) ➜  test_3_module git:(main) ✗ curl -X POST -H 'Content-Type: application/json' --data @connector.json http://localhost:8083/connectors | jq                   
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100  1843  100   904  100   939   2768   2875 --:--:-- --:--:-- --:--:--  5636
-{
-  "name": "pg-connector",
-  "config": {
-    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
-    "database.hostname": "postgres",
-    "database.port": "5432",
-    "database.user": "postgres-user",
-    "database.password": "postgres-pw",
-    "database.dbname": "customers",
-    "database.server.name": "customers",
-    "table.whitelist": "public.customers",
-    "transforms": "unwrap,mask",
-    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
-    "transforms.unwrap.drop.tombstones": "false",
-    "transforms.unwrap.delete.handling.mode": "rewrite",
-    "transforms.mask.type": "org.apache.kafka.connect.transforms.MaskField$Value",
-    "transforms.mask.fields": "private_info",
-    "transforms.mask.replacement": "CENSORED",
-    "topic.prefix": "customers",
-    "topic.creation.enable": "true",
-    "topic.creation.default.replication.factor": "-1",
-    "topic.creation.default.partitions": "-1",
-    "skipped.operations": "none",
-    "name": "pg-connector"
-  },
-  "tasks": [],
-  "type": "source"
-}
-```
-
-2. Пример сообщения в топике
-```
-{
-	"schema": {
-		"type": "struct",
-		"fields": [
-			{
-				"type": "int32",
-				"optional": false,
-				"field": "id"
-			},
-			{
-				"type": "string",
-				"optional": true,
-				"field": "name"
-			},
-			{
-				"type": "string",
-				"optional": true,
-				"field": "private_info"
-			},
-			{
-				"type": "string",
-				"optional": true,
-				"field": "__deleted"
-			}
-		],
-		"optional": false,
-		"name": "customers.public.users.Value"
-	},
-	"payload": {
-		"id": 1,
-		"name": "Alex",
-		"private_info": "CENSORED",
-		"__deleted": "false"
-	}
-}
+kafka-connect-1  | [2025-02-06 14:28:53,545] INFO Creating connector pg-connector of type io.debezium.connector.postgresql.PostgresConnector (org.apache.kafka.connect.runtime.Worker)
+kafka-connect-1  | [2025-02-06 14:28:53,561] INFO SourceConnectorConfig values: 
+kafka-connect-1  |      config.action.reload = restart
+kafka-connect-1  |      connector.class = io.debezium.connector.postgresql.PostgresConnector
+kafka-connect-1  |      errors.log.enable = false
+kafka-connect-1  |      errors.log.include.messages = false
+kafka-connect-1  |      errors.retry.delay.max.ms = 60000
+kafka-connect-1  |      errors.retry.timeout = 0
+kafka-connect-1  |      errors.tolerance = none
+kafka-connect-1  |      exactly.once.support = requested
+kafka-connect-1  |      header.converter = null
+kafka-connect-1  |      key.converter = null
+kafka-connect-1  |      name = pg-connector
+kafka-connect-1  |      offsets.storage.topic = null
+kafka-connect-1  |      predicates = []
+kafka-connect-1  |      tasks.max = 1
+kafka-connect-1  |      topic.creation.groups = []
+kafka-connect-1  |      transaction.boundary = poll
+kafka-connect-1  |      transaction.boundary.interval.ms = null
+kafka-connect-1  |      transforms = [unwrap, mask]
+kafka-connect-1  |      value.converter = null
+kafka-connect-1  |  (org.apache.kafka.connect.runtime.SourceConnectorConfig)
 ```
